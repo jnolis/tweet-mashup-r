@@ -42,4 +42,4 @@ vignettes/*.pdf
 data/
 
 # config with twitter keys
-config.yml
+config.json

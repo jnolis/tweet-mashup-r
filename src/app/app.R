@@ -6,7 +6,7 @@ library(shinycssloaders)
 
 source("twitter.R")
 
-keys <- config::get()
+keys <- jsonlite::read_json("config.json")
 
 # cache ---------------------------------------------
 
