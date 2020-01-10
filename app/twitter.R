@@ -1,5 +1,4 @@
 library(rtweet)
-library(httr)
 library(purrr)
 library(dplyr)
 

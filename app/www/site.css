@@ -1,5 +1,6 @@
 .ampersand {
   margin-top: 0;
+  margin-bottom: 0;
 }
 
 .try-it-input {
@@ -9,8 +10,15 @@
 
 .tweet-text {
     font-size: 48px;
+    line-height: 1.1;
 }
 
+@media (max-width: 767px){
+  .tweet-text{
+    font-size: 24px;
+    line-height: 1.0;
+  }
+} 
 
 .img-circle {
     border-radius: 50%;
@@ -56,3 +64,55 @@
     text-align: left;
 }
 
+.navbar {
+  margin-bottom: 0;
+}
+
+h1 {
+    font-size: 72px;
+}
+
+@media (max-width: 767px){
+  h1{
+    font-size: 36px;
+  }
+} 
+
+@media (max-width: 575px){
+  .vertical-align {
+    display: block;
+  }
+} 
+
+@media (min-width: 576px){
+  .vertical-align {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+  }
+}
+
+
+
+.twitter-button
+{
+    color: #fff;
+    background-color: #55acee;
+    background-image: linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0.05));
+    border: 1px solid #3b94d9;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.twitter-button:hover, .twitter-button:focus, .twitter-button:active, .twitter-button.active, .open>.dropdown-toggle.twitter-button
+{
+    color: #fff;
+    background-color: #3C93D5;
+    background-image: linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0.05));
+    border: 1px solid #3b94d9;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.input-group {
+  margin-bottom: 3px;
+}

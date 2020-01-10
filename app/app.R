@@ -1,10 +1,8 @@
 library(shiny)
 library(shinyjs) # for the cookie storing stuff
-library(uuid)
-library(jsonlite)
 library(httr)
 library(rtweet)
-library(future)
+library(shinycssloaders)
 
 source("twitter.R")
 
@@ -12,10 +10,10 @@ keys <- config::get()
 
 # cache ---------------------------------------------
 
-credential_cache <- memoryCache(max_size = 16 * 1024^2, missing = NULL)
+credential_cache <- memoryCache(max_size = 32 * 1024^2, missing = NULL)
 
 user_tweet_info_cache <-
-  memoryCache(max_size = 16 * 1024^2, max_age = 86400, missing = NULL)
+  memoryCache(max_size = 128 * 1024^2, max_age = 86400, missing = NULL)
 
 get_user_tweet_info_cache <- function(username, token){
   username <- fix_username(username)
@@ -121,28 +119,28 @@ app <- oauth_app(
 
 ui <- div(
   tags$head(
-    tags$title("Tweet Mashup!"),
+    tags$title("Tweet mashup!"),
     tags$link(rel="shortcut icon", href="favicon.ico", type="image/x-icon"),
     tags$meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1"),
     tags$meta(`http-equiv`="x-ua-compatible", content="ie=edge"),
     tags$meta(name="description", content = "Generate some pet names!"),
     tags$script(src = "js/js.cookie.min.js"),
+    tags$link(rel="stylesheet",
+              href="css/bootstrap.min.css"),
+    tags$link(rel="stylesheet",
+              href="css/bootstrap-theme.min.css"),
+    tags$link(rel="stylesheet",
+              href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"),
     tags$link(rel = "stylesheet",
               type = "text/css",
               href = "site.css"),
-    tags$link(rel="stylesheet",
-              href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
-              integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u",
-              crossorigin="anonymous"),
-    tags$script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js",
-                integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa",
-                crossorigin="anonymous")
+    tags$script(src="js/bootstrap.min.js")
     
   ),
   useShinyjs(),
   extendShinyjs(text = jsCode),
   
-  div(class="navbar navbar-static-top",role="navigation",
+  div(class="navbar navbar-static-top hidden-xs",role="navigation",
       div(class="container",
           tags$ul(class = "nav navbar-nav navbar-right",
                   tags$li(
@@ -161,7 +159,7 @@ ui <- div(
   
   div(class="container",
       uiOutput("try_it", class="try-it-input"), # this will either show a link to authenticate or some tweets
-      uiOutput("generated_tweet")
+      withSpinner(uiOutput("generated_tweet"), color="#f26d7e", type=8, proxy.height="100px")
   )
 )
 
@@ -243,23 +241,16 @@ server <- function(input, output, session) {
     username
   })
   
-  user_tweet_info_1 <- reactive({
+  user_tweet_info <- reactive({
     input$generate
-    username <- isolate({username_1()})
+    username_1 <- isolate({username_1()})
+    username_2 <- isolate({username_2()})
     access_token <- isolate({access_token()})
-    if(!is.null(username)){
-      get_user_tweet_info_cache(username, access_token)
-    } else {
-      NULL
-    }
-  })
-  
-  user_tweet_info_2 <- reactive({
-    input$generate
-    username <- isolate({username_2()})
-    access_token <- isolate({access_token()})
-    if(!is.null(username)){
-      get_user_tweet_info_cache(username, access_token)
+    if(!is.null(username_1) && !is.null(username_2)){
+      # someday perhaps parallelize this?
+      user_tweet_info <- map(list(username_1 = username_1, username_2 = username_2), 
+                                    ~ get_user_tweet_info_cache(.x, access_token))
+      
     } else {
       NULL
     }
@@ -267,41 +258,84 @@ server <- function(input, output, session) {
   
   generated_tweet <- reactive({
     input$generate
-    user_tweet_info_1 <- isolate({user_tweet_info_1()})
-    user_tweet_info_2 <- isolate({user_tweet_info_2()})
-    if(!is.null(user_tweet_info_1) && !is.null(user_tweet_info_2)){
-      make_combined_tweet(user_tweet_info_1, user_tweet_info_2)
+    user_tweet_info <- isolate({user_tweet_info()})
+    if(!is.null(user_tweet_info) && 
+       !is.null(user_tweet_info$username_1) && 
+       !is.null(user_tweet_info$username_2)){
+      make_combined_tweet(user_tweet_info$username_1, user_tweet_info$username_2)
     } else {
       NULL
     }
   })
   
+  # either show the authentication URL or a few tweets
+  output$try_it <- renderUI({
+    if(is.null(access_token())){
+      if(is.null(user_id())){
+        return(div())
+      }
+      url <- get_authorization_url(app, callback_url = "http://127.0.0.1")
+      tags$form(
+        div(class="form-group row vertical-align",
+            div(class="col-sm-5 col-xs-12",
+                div(class="input-group",
+                    span(class="input-group-addon","@"),
+                    tags$input(type="text",class="form-control",  id="username_1", disabled=NA)
+                )),
+            div(class="col-sm-1 hidden-xs",h1("&", class="ampersand text-center")),
+            div(class="col-sm-5 col-xs-12",
+                div(class="input-group",
+                    span(class="input-group-addon","@"),
+                    tags$input(type="text",class="form-control", id="username_2", disabled=NA)
+                )),
+            div(class="col-sm-1 col-xs-12 text-center",a(class="btn twitter-button", href = url, tags$i(class="fa fa-twitter"), "Authorize!")))
+      )
+    } else {
+      tags$form(
+        div(class="form-group row vertical-align",
+            div(class="col-sm-5 col-xs-12",
+                div(class="input-group",
+                    span(class="input-group-addon","@"),
+                    tags$input(type="text",class="form-control",  id="username_1")
+                )),
+            div(class="col-sm-1 hidden-xs",h1("&", class="ampersand text-center")),
+            div(class="col-sm-5 col-xs-12",
+                div(class="input-group",
+                    span(class="input-group-addon","@"),
+                    tags$input(type="text",class="form-control", id="username_2")
+                )),
+            div(class="col-sm-1 col-xs-12 text-center",actionButton("generate","Go!", class="btn btn-primary")))
+      )
+    }
+    
+  })
+  
+  
   output$generated_tweet <- renderUI({
     
     generated_tweet <- generated_tweet()
     
-    user_tweet_info_1 <- isolate({user_tweet_info_1()})
-    user_tweet_info_2 <- isolate({user_tweet_info_2()})
+    user_tweet_info <- isolate({user_tweet_info()})
     if(!is.null(generated_tweet)){
-      user_info_1 <- user_tweet_info_1$user_info
-      user_info_2 <- user_tweet_info_2$user_info
-      div(class="output-ui",
+      user_info_1 <- user_tweet_info$username_1$user_info
+      user_info_2 <- user_tweet_info$username_2$user_info
+      div(class="output-ui container",
           div(class="row",
-              div(class="col-md-4 col-lg-4 left-name hidden-sm hidden-xs",
+              div(class="col-sm-4 left-name hidden-xs",
                   h4(user_info_1$name),
-                  h6(tags$em(user_info_1$screen_name))
+                  h6(tags$em(paste0("@",user_info_1$screen_name)))
               ),
-              div(class="overlapping-images col-md-4 col-lg-4",
+              div(class="overlapping-images col-sm-4",
                   img(src=user_info_1$image_url, class="img-circle img-left", width = "128", height ="128"),
                   img(src=user_info_2$image_url, class="img-circle img-right", width = "128", height ="128")
               ),
-              div(class="col-md-4 col-lg-4 right-name hidden-sm hidden-xs",
+              div(class="col-sm-4 right-name hidden-xs",
                   h4(user_info_2$name),
-                  h6(tags$em(user_info_2$screen_name))
+                  h6(tags$em(paste0("@",user_info_2$screen_name)))
               )
           ),
           div(class="row text-center",
-              HTML("TweetMashup.com by <a href=\"https://nolisllc.com\" target=\"_blank\">Nolis, LLC</a>")
+              h4(HTML("TweetMashup.com by <a href=\"https://nolisllc.com\" target=\"_blank\">Nolis, LLC</a>"))
           ),
           div(class="row",
               p(class="tweet-text text-center", generated_tweet)
@@ -311,46 +345,6 @@ server <- function(input, output, session) {
       div()
     }
   })
-  
-  # either show the authentication URL or a few tweets
-  output$try_it <- renderUI({
-    if(is.null(access_token())){
-      url <- get_authorization_url(app, callback_url = "http://127.0.0.1")
-      tags$form(
-        div(class="form-group row",
-            div(class="col-xs-4",
-                div(class="input-group",
-                    span(class="input-group-addon","@"),
-                    tags$input(type="text",class="form-control",  id="username_1", disabled=NA)
-                )),
-            div(class="col-xs-1",h1("&", class="ampersand text-center")),
-            div(class="col-xs-4",
-                div(class="input-group",
-                    span(class="input-group-addon","@"),
-                    tags$input(type="text",class="form-control", id="username_2", disabled=NA)
-                )),
-            div(class="col-xs-3",a(class="btn btn-primary", href = url, "Authorize to make your own!")))
-      )
-    } else {
-      tags$form(
-        div(class="form-group row",
-            div(class="col-xs-4",
-                div(class="input-group",
-                    span(class="input-group-addon","@"),
-                    tags$input(type="text",class="form-control",  id="username_1")
-                )),
-            div(class="col-xs-1",h1("&", class="ampersand text-center")),
-            div(class="col-xs-4",
-                div(class="input-group",
-                    span(class="input-group-addon","@"),
-                    tags$input(type="text",class="form-control", id="username_2")
-                )),
-            div(class="col-xs-3",actionButton("generate","Go!", class="btn btn-primary")))
-      )
-    }
-    
-  })
-  
 }
 
 # make sure you use port 80 or whatever you put in the twitter developer portal
