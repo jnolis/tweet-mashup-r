@@ -2,29 +2,59 @@ library(shiny)
 library(shinyjs) # for the cookie storing stuff
 library(httr)
 library(rtweet)
-library(shinycssloaders)
+library(future)
+library(furrr)
 
 source("twitter.R")
 
+future::plan(future::multiprocess(workers=as.integer(Sys.getenv("FUTURE_WORKERS","4"))))
+
 keys <- jsonlite::read_json("config.json")
+
+hostname <- Sys.getenv("APP_HOSTNAME","")
+
+if_hostname <- function(x){
+  if(nchar(trimws(hostname))>0){
+    x
+  } else {
+    NULL
+  }
+}
 
 # cache ---------------------------------------------
 
-credential_cache <- memoryCache(max_size = 32 * 1024^2, missing = NULL)
+credential_cache <- 
+  memoryCache(max_size = as.integer(Sys.getenv("APP_MEMORY_CREDENTIALS","32")) * 1024^2, 
+              missing = NULL)
 
 user_tweet_info_cache <-
-  memoryCache(max_size = 128 * 1024^2, max_age = 86400, missing = NULL)
+  memoryCache(max_size = as.integer(Sys.getenv("APP_MEMORY_USER_TWEET_INFO","128")) * 1024^2, 
+              max_age = 86400, 
+              missing = NULL)
 
-get_user_tweet_info_cache <- function(username, token){
-  username <- fix_username(username)
+get_user_tweet_info_cache <- function(usernames, token){
   
-  user_tweet_info <- user_tweet_info_cache$get(username)
-  if(is.null(user_tweet_info)){
-    user_tweet_info <- get_user_tweet_info(username, token)
-    user_tweet_info_cache$set(username, user_tweet_info)
-  }
+  user_tweet_info_from_cache <- map(usernames, user_tweet_info_cache$get)
+  user_tweet_info_from_pull <- 
+    future_pmap(list(usernames, user_tweet_info_from_cache), function(username, user_tweet_info){
+      if(is.null(user_tweet_info)){
+        get_user_tweet_info(username, token)
+      } else {
+        NULL
+      }
+      })
   
-  user_tweet_info
+  results <- pmap(list(usernames, user_tweet_info_from_cache, user_tweet_info_from_pull), function(username, cache,pull){
+    if(is.null(cache) && !is.null(pull)){
+      user_tweet_info_cache$set(username, pull)
+      pull
+    } else if(!is.null(cache)){
+      cache
+    } else {
+      NULL
+    }
+  })
+  results
 }
 
 # helper functions ----------------------------
@@ -123,7 +153,14 @@ ui <- div(
     tags$link(rel="shortcut icon", href="favicon.ico", type="image/x-icon"),
     tags$meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1"),
     tags$meta(`http-equiv`="x-ua-compatible", content="ie=edge"),
-    tags$meta(name="description", content = "Generate some pet names!"),
+    tags$meta(name="description", content = "Combine two Twitter accounts into one funny tweet!"),
+    tags$meta(property="og:title",content="Tweet mashup!"),
+    tags$meta(property="og:description", content="Combine two Twitter accounts into one funny tweet!"),
+    tags$meta(property="og:type",content="website"),
+    if_hostname(tags$meta(property="og:url", content=hostname)),
+    if_hostname(tags$meta(property="og:image", content=paste0(hostname,"/open_graph_image.png"))),
+    if_hostname(tags$meta(property="og:image:width", content="1200")),
+    if_hostname(tags$meta(property="og:image:height", content="630")),
     tags$script(src = "js/js.cookie.min.js"),
     tags$link(rel="stylesheet",
               href="css/bootstrap.min.css"),
@@ -159,7 +196,9 @@ ui <- div(
   
   div(class="container",
       uiOutput("try_it", class="try-it-input"), # this will either show a link to authenticate or some tweets
-      withSpinner(uiOutput("generated_tweet"), color="#f26d7e", type=8, proxy.height="100px")
+      uiOutput("generated_tweet_title"),
+      #withSpinner(uiOutput("generated_tweet"), color="#f26d7e", type=8, proxy.height="80px")
+      uiOutput("generated_tweet")
   )
 )
 
@@ -247,10 +286,8 @@ server <- function(input, output, session) {
     username_2 <- isolate({username_2()})
     access_token <- isolate({access_token()})
     if(!is.null(username_1) && !is.null(username_2)){
-      # someday perhaps parallelize this?
-      user_tweet_info <- map(list(username_1 = username_1, username_2 = username_2), 
-                                    ~ get_user_tweet_info_cache(.x, access_token))
-      
+      user_tweet_info <- get_user_tweet_info_cache(c(username_1, username_2), access_token)
+      setNames(user_tweet_info, c("username_1", "username_2"))
     } else {
       NULL
     }
@@ -268,13 +305,15 @@ server <- function(input, output, session) {
     }
   })
   
+  callback_url <- reactive({paste0(session$clientData$url_protocol,"//",session$clientData$url_hostname)})
+  
   # either show the authentication URL or a few tweets
   output$try_it <- renderUI({
     if(is.null(access_token())){
       if(is.null(user_id())){
-        return(div())
+        return(NULL)
       }
-      url <- get_authorization_url(app, callback_url = "http://127.0.0.1")
+      url <- get_authorization_url(app, callback_url = callback_url())
       tags$form(
         div(class="form-group row vertical-align",
             div(class="col-sm-5 col-xs-12",
@@ -310,13 +349,10 @@ server <- function(input, output, session) {
     
   })
   
-  
-  output$generated_tweet <- renderUI({
+  output$generated_tweet_title <- renderUI({
+    user_tweet_info <- user_tweet_info()
     
-    generated_tweet <- generated_tweet()
-    
-    user_tweet_info <- isolate({user_tweet_info()})
-    if(!is.null(generated_tweet)){
+    if(!is.null(user_tweet_info)){
       user_info_1 <- user_tweet_info$username_1$user_info
       user_info_2 <- user_tweet_info$username_2$user_info
       div(class="output-ui container",
@@ -335,15 +371,21 @@ server <- function(input, output, session) {
               )
           ),
           div(class="row text-center",
-              h4(HTML("TweetMashup.com by <a href=\"https://nolisllc.com\" target=\"_blank\">Nolis, LLC</a>"))
-          ),
-          div(class="row",
-              p(class="tweet-text text-center", generated_tweet)
+              h4(HTML("Tweet mashup by <a href=\"https://nolisllc.com\" target=\"_blank\">Nolis, LLC</a>"))
           )
       )
     } else {
-      div()
+      NULL
     }
+  })
+  
+  output$generated_tweet <- renderUI({
+    if(is.null(generated_tweet())){
+      generated_tweet <- ""
+    } else {
+      generated_tweet <- generated_tweet()
+    }
+    div(class="row", p(class="tweet-text text-center", generated_tweet))
   })
 }
 

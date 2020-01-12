@@ -5,7 +5,7 @@ library(dplyr)
 max_tweet_length <- 280
 
 fix_username <- function(username){
-  gsub("[^[:alnum:]_]", "", username)
+  tolower(gsub("[^[:alnum:]_]", "", username))
 }
 
 get_user_facts <- function(username,token){
