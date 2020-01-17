@@ -1,40 +1,40 @@
 library(shiny)
 library(shinyjs) # for the cookie storing stuff
-library(httr)
+library(httr) # needed for the 3-legged auth
 library(rtweet)
 library(future)
 library(furrr)
 
 source("twitter.R")
 
+# needed so that the app can pull multiple twitter profiles in parallel
 future::plan(future::multiprocess(workers=as.integer(Sys.getenv("FUTURE_WORKERS","4"))))
 
+# the Twitter application keys
 keys <- jsonlite::read_json("config.json")
-
-hostname <- Sys.getenv("APP_HOSTNAME","")
-
-if_hostname <- function(x){
-  if(nchar(trimws(hostname))>0){
-    x
-  } else {
-    NULL
-  }
-}
 
 # cache ---------------------------------------------
 
+# this code is for caches will hold the credentials and twitter info of the people who log in. Note that if the application times out and shuts down (which happens after 3 hours), all of the information is lost.
+
+# Cache for login credentials
 credential_cache <- 
-  memoryCache(max_size = as.integer(Sys.getenv("APP_MEMORY_CREDENTIALS","32")) * 1024^2, 
+  memoryCache(max_size = 64 * 1024^2, 
               missing = NULL)
 
+# cache for information about twitter users (name, profile image) and their tweets. It only stores information for a day to ensure the tweets are fresh
 user_tweet_info_cache <-
-  memoryCache(max_size = as.integer(Sys.getenv("APP_MEMORY_USER_TWEET_INFO","128")) * 1024^2, 
+  memoryCache(max_size = 256 * 1024^2, 
               max_age = 86400, 
               missing = NULL)
 
-get_user_tweet_info_cache <- function(usernames, token){
-  
+# this function will either pull user and tweet info for a username from the cache, or query the twitter API if the crdentials aren't found. It can pull multiple users at once in parallel
+get_user_tweet_info_cache <- function(usernames, token){  
+
+  # pull all the users from the cache
   user_tweet_info_from_cache <- map(usernames, user_tweet_info_cache$get)
+
+  # for anyone not in the cache, pull from twitter in parallel
   user_tweet_info_from_pull <- 
     future_pmap(list(usernames, user_tweet_info_from_cache), function(username, user_tweet_info){
       if(is.null(user_tweet_info)){
@@ -44,6 +44,7 @@ get_user_tweet_info_cache <- function(usernames, token){
       }
       })
   
+  # combine the cache and twitter information into one list
   results <- pmap(list(usernames, user_tweet_info_from_cache, user_tweet_info_from_pull), function(username, cache,pull){
     if(is.null(cache) && !is.null(pull)){
       user_tweet_info_cache$set(username, pull)
@@ -57,10 +58,12 @@ get_user_tweet_info_cache <- function(usernames, token){
   results
 }
 
-# helper functions ----------------------------
+# 3-legged authentication functions ----------------------------
+# 3-legged auth is when an app user is redirected to twitter to log in 
+# and pass their credentials back to the app. It's needed so API limits are avoided. For a demo of just the 3-legged auth code, check out this github gist:
+# https://gist.github.com/jnolis/a41c196a5e22e2a2115d28e853d4780c
 
-
-# this is a modification of Michael's code to make the signature for authenticating twitter
+# this is a modification of rtweet code to make the signature for authenticating twitter
 # API requests. It's pulled from tokens.R in the rtweet package
 oauth_sig <- function(url, method,
                       token = NULL,
@@ -139,6 +142,7 @@ jsCode <- '
     Shiny.onInputChange("jscookie", "");
   }
 '
+
 # The app we'll be using. I didn't give it a name since it doesn't seem to matter
 app <- oauth_app(
   app = "",
@@ -146,37 +150,44 @@ app <- oauth_app(
   secret = keys$consumer_secret
 )
 
-
+# shiny code ----------------------------
 ui <- div(
   tags$head(
+    # information about the site (title, description)
     tags$title("Tweet mashup!"),
     tags$link(rel="shortcut icon", href="favicon.ico", type="image/x-icon"),
     tags$meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1"),
     tags$meta(`http-equiv`="x-ua-compatible", content="ie=edge"),
     tags$meta(name="description", content = "Combine two Twitter accounts into one funny tweet!"),
+
+    # open-graph tags for when people link to it
     tags$meta(property="og:title",content="Tweet mashup!"),
     tags$meta(property="og:description", content="Combine two Twitter accounts into one funny tweet!"),
     tags$meta(property="og:type",content="website"),
-    if_hostname(tags$meta(property="og:url", content=hostname)),
-    if_hostname(tags$meta(property="og:image", content=paste0(hostname,"/open_graph_image.png"))),
-    if_hostname(tags$meta(property="og:image:width", content="1200")),
-    if_hostname(tags$meta(property="og:image:height", content="630")),
+
+    # boostrap resources
     tags$script(src = "js/js.cookie.min.js"),
-    tags$link(rel="stylesheet",
-              href="css/bootstrap.min.css"),
-    tags$link(rel="stylesheet",
-              href="css/bootstrap-theme.min.css"),
+    tags$link(rel="stylesheet", href="css/bootstrap.min.css"),
+    tags$link(rel="stylesheet", href="css/bootstrap-theme.min.css"),
+    tags$script(src="js/bootstrap.min.js"),
+
+    # font awesome for the twitter icon
     tags$link(rel="stylesheet",
               href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"),
+
+    # custom css styling for the site
     tags$link(rel = "stylesheet",
               type = "text/css",
-              href = "site.css"),
-    tags$script(src="js/bootstrap.min.js")
+              href = "site.css")
+    
     
   ),
+
+  # code for javascript
   useShinyjs(),
   extendShinyjs(text = jsCode),
   
+  # navbar with links, not shown on mobile
   div(class="navbar navbar-static-top hidden-xs",role="navigation",
       div(class="container",
           tags$ul(class = "nav navbar-nav navbar-right",
