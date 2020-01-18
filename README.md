@@ -1,6 +1,8 @@
 # Tweet Mashup (Shiny version)
 
-This is the feature-limited port of the original Tweet Mashup from F# to R. It uses [Shiny](https://shiny.rstudio.com/) and [rtweet](https://github.com/ropensci/rtweet) to recreate the original interface. The Shiny application is hosted in a Shiny Server using a Docker image from a modified [T-Mobile Tensorflow R container](https://github.com/tmobile/r-tensorflow-api)
+![Elmo and Dril mashup](misc/tweet-mashup-example-01.png)
+
+This is the feature-limited port of the original [Tweet Mashup](https://github.com/jnolis/TweetMashup) from F# to R. It uses [Shiny](https://shiny.rstudio.com/) and [rtweet](https://github.com/ropensci/rtweet) to recreate the original interface. The Shiny application is hosted in a Shiny Server using a Docker image from a modified [T-Mobile Tensorflow R container](https://github.com/tmobile/r-tensorflow-api)
 
 ## Setup
 
