@@ -21,7 +21,25 @@ __2. Get the keys__ - If you click the details of the app you created you'll see
 
 This file should be saved to `/src/app/config.json`.
 
-## Building the container
+__3. Set the callback url__ - Finally, in the Twitter developer site you'll need to add the appropriate callback urls. This is required and needs to be anywhere you will host the application. This means you'll want to include:
+
+* `http://127.0.0.1` - for testing the application locally
+* `[url you host it on]` - for when it's running live
+* `http://127.0.0.1:1410` [optional] - if you want to do general experimentation with rtweet this will allow you to easily authenticate
+
+## Running directly
+
+After following the setup instructions, you can go into the `src` folder and run the following r command:
+
+```r
+shiny::runApp("app",port=80L, launch.browser = FALSE)
+```
+
+After running this command you can navigate to `http://127.0.0.1` in your broswer and test it out.
+
+## Building the Docker image
+
+Instead of directly running the R code, you can create a Docker image with the R code inside it.
 
 Before starting ensure you have [installed Docker](https://docs.docker.com/v17.09/engine/installation/)
 To build the container with docker installed use the following command from the commany line in the base folder of the repository:
@@ -40,7 +58,7 @@ Then navigate to `http://127.0.0.1` to try it out!
 
 ## Deploying to a Google Cloud Compute Engine Virtual Machine
 
-One of the easiest ways to publically host this app is with Google Cloud Compute Engine Virtual Machines. This can be hosted for less than $5 a month. To do so, first create a [Google Cloud project](https://cloud.google.com/resource-manager/docs/creating-managing-projects). Then run the following commands:
+One of the easiest ways to publically host this app is with Google Cloud Compute Engine Virtual Machines. I have been able to host it for around $20 a month, but it's likely possible to do it fore more cheaply. To do so, first create a [Google Cloud project](https://cloud.google.com/resource-manager/docs/creating-managing-projects). Then run the following commands:
 
 First, tag the container with how you want to add it to Google Cloud Registry (this will be how it's available to the virtual machine):
 
