@@ -61,5 +61,4 @@ COPY src /srv/shiny-server/shiny/
 
 EXPOSE 80
 
-WORKDIR /src
 ENTRYPOINT ["shiny-server"]
