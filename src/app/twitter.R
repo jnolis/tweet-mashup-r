@@ -2,12 +2,6 @@ library(rtweet)
 library(purrr)
 library(dplyr)
 
-max_tweet_length <- 280
-
-fix_username <- function(username){
-  tolower(gsub("[^[:alnum:]_]", "", username))
-}
-
 get_user_facts <- function(username,token){
   large_image_urls <- function(urls){
     sub("_normal\\.", "_400x400.", urls)
@@ -25,7 +19,7 @@ get_user_facts <- function(username,token){
 }
 
 get_tweets <- function(username, token, n = 640){
-  raw_tweets <- get_timeline(username,n=n, token=token)
+  raw_tweets <- get_timeline(username,n=n, token=token, exclude_replies=TRUE, include_rts=FALSE, trim_user=TRUE)
   if(nrow(raw_tweets) > 0){
     filtered <- raw_tweets[!raw_tweets$is_retweet & is.na(raw_tweets$reply_to_status_id),c("status_id","text")]
     tweets <- setNames(filtered$text,filtered$status_id)
@@ -76,7 +70,6 @@ make_word_lookup <- function(tweets){
 }
 
 get_user_tweet_info <- function(username, token){
-  username <- fix_username(username)
   user_info <- get_user_facts(username, token)
   tweets <- get_tweets(username, token)
   word_lookup <- make_word_lookup(tweets)
@@ -86,7 +79,7 @@ get_user_tweet_info <- function(username, token){
        word_lookup = word_lookup)
 }
 
-make_combined_tweet <- function(user_tweet_info_1, user_tweet_info_2){
+make_combined_tweet <- function(user_tweet_info_1, user_tweet_info_2, max_tweet_length=280){
   tweets_1 <- user_tweet_info_1$tweets
   tweets_2 <- user_tweet_info_2$tweets
   word_lookup_1 <- user_tweet_info_1$word_lookup

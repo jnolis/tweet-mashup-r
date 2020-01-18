@@ -13,6 +13,17 @@ future::plan(future::multiprocess(workers=as.integer(Sys.getenv("FUTURE_WORKERS"
 # the Twitter application keys
 keys <- jsonlite::read_json("config.json")
 
+fix_username <- function(original){
+  username <- NULL
+  if(!is.null(original)){
+    fixed_username <- tolower(gsub("[^[:alnum:]_]", "", original))
+    if(nchar(fixed_username) > 0){
+      username <- fixed_username
+    }
+  }
+  username
+}
+
 # cache ---------------------------------------------
 
 # this code is for caches will hold the credentials and twitter info of the people who log in. Note that if the application times out and shuts down (which happens after 3 hours), all of the information is lost.
@@ -35,14 +46,25 @@ get_user_tweet_info_cache <- function(usernames, token){
   user_tweet_info_from_cache <- map(usernames, user_tweet_info_cache$get)
 
   # for anyone not in the cache, pull from twitter in parallel
-  user_tweet_info_from_pull <- 
-    future_pmap(list(usernames, user_tweet_info_from_cache), function(username, user_tweet_info){
-      if(is.null(user_tweet_info)){
-        get_user_tweet_info(username, token)
-      } else {
-        NULL
-      }
-      })
+  if(any(map_lgl(user_tweet_info_from_cache, is.null))){
+    user_tweet_info_from_pull <- 
+      future_pmap(list(usernames, user_tweet_info_from_cache), function(username, user_tweet_info){
+        if(is.null(user_tweet_info)){
+          get_user_tweet_info(username, token)
+        } else {
+          NULL
+        }
+      },
+      .options = future_options(packages=c("rtweet"), 
+                                globals=c("get_user_facts",
+                                          "get_tweets",
+                                          "get_user_tweet_info",
+                                          "make_word_lookup")))
+  } else {
+    user_tweet_info_from_pull <- rep(list(NULL),2)
+  }
+  
+
   
   # combine the cache and twitter information into one list
   results <- pmap(list(usernames, user_tweet_info_from_cache, user_tweet_info_from_pull), function(username, cache,pull){
@@ -267,29 +289,9 @@ server <- function(input, output, session) {
     }
   })
   
-  username_1 <- reactive({
-    original <- input$username_1
-    username <- NULL
-    if(!is.null(original)){
-      fixed_username <- fix_username(original)
-      if(nchar(fixed_username) > 0){
-        username <- fixed_username
-      }
-    }
-    username
-  })
+  username_1 <- reactive({fix_username(input$username_1)})
   
-  username_2 <- reactive({
-    original <- input$username_2
-    username <- NULL
-    if(!is.null(original)){
-      fixed_username <- fix_username(original)
-      if(nchar(fixed_username) > 0){
-        username <- fixed_username
-      }
-    }
-    username
-  })
+  username_2 <- reactive({fix_username(input$username_2)})
   
   user_tweet_info <- reactive({
     input$generate
@@ -326,13 +328,13 @@ server <- function(input, output, session) {
       }
       url <- get_authorization_url(app, callback_url = callback_url())
       tags$form(
-        div(class="form-group row vertical-align",
+        div(class="row vertical-align",
             div(class="col-sm-5 col-xs-12",
                 div(class="input-group",
                     span(class="input-group-addon","@"),
                     tags$input(type="text",class="form-control",  id="username_1", disabled=NA)
                 )),
-            div(class="col-sm-1 hidden-xs",h1("&", class="ampersand text-center")),
+            div(class="col-sm-1 col-xs-12", h1("&", class="ampersand text-center")),
             div(class="col-sm-5 col-xs-12",
                 div(class="input-group",
                     span(class="input-group-addon","@"),
@@ -396,7 +398,7 @@ server <- function(input, output, session) {
     } else {
       generated_tweet <- generated_tweet()
     }
-    div(class="row", p(class="tweet-text text-center", generated_tweet))
+    div(class="container", p(class="tweet-text text-center", generated_tweet))
   })
 }
 
