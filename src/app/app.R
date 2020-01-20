@@ -124,15 +124,15 @@ get_access_token <- function(app, oauth_token, oauth_verifier){
                          oauth_sig(url,
                                    "POST",
                                    private_key = NULL))
+  
   if(response$status_code == 200L){
-    results <- content(response,type="text", encoding="UTF-8")
-    results <- strsplit(results,"&")[[1]]
-    results <- lapply(results, function(x) strsplit(x,"=")[[1]])
-    results <- lapply(results, function(x) setNames(list(x[2]),x[1]))
-    results <- do.call(c, results)
+    results <- content(response,type="application/x-www-form-urlencoded", encoding="UTF-8")
     
-    results[["screen_name"]] <- NULL # since storing that might be creepy
-    results[["user_id"]] <- NULL     # since storing that might be creepy
+    # since storing that might be creepy
+    results[["screen_name"]] <- NULL 
+    
+    # since storing that might be creepy
+    results[["user_id"]] <- NULL     
     
     results
   } else {
