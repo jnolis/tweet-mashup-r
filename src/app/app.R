@@ -30,8 +30,9 @@ fix_username <- function(original){
 
 # Cache for login credentials
 credential_cache <- 
-  memoryCache(max_size = 64 * 1024^2, 
-              missing = NULL)
+  diskCache(max_size = 64 * 1024^2, 
+              missing = NULL,
+              dir = "user-credentials")
 
 # cache for information about twitter users (name, profile image) and their tweets. It only stores information for a day to ensure the tweets are fresh
 user_tweet_info_cache <-
