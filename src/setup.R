@@ -15,4 +15,4 @@
 # =========================================================================
 
 options(warn=2) # cause the build to fail if any packages fail to install
-install.packages(c("rtweet","purrr", "dplyr", "shinyjs", "httr", "jsonlite", "V8", "future", "furrr")) # install any packages you might want beyond shiny and keras
+install.packages(c("rtweet","purrr", "dplyr", "shinyjs", "httr", "jsonlite", "V8", "future", "furrr", "sodium")) # install any packages you might want beyond shiny and keras

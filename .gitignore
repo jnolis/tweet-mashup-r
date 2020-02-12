@@ -39,7 +39,7 @@ vignettes/*.pdf
 .Renviron
 
 # data folder for storing temp files
-data/
+src/app/user-credentials/
 
 # config with twitter keys
 config.json

@@ -4,6 +4,7 @@ library(httr) # needed for the 3-legged auth
 library(rtweet)
 library(future)
 library(furrr)
+library(sodium)
 
 source("twitter.R")
 
@@ -12,6 +13,14 @@ future::plan(future::multiprocess(workers=as.integer(Sys.getenv("FUTURE_WORKERS"
 
 # the Twitter application keys
 keys <- jsonlite::read_json("config.json")
+
+# encryption key to encrypt credentials at rest
+encryption_key <- Sys.getenv("CREDENTIAL_ENCRYPTION_KEY",NA_character_)
+if(is.na(encryption_key)){
+  stop("No key provided to encrypt credential data")
+} else {
+  encryption_key <- sha256(charToRaw(encryption_key))
+}
 
 fix_username <- function(original){
   username <- NULL
@@ -46,8 +55,11 @@ get_user_tweet_info_cache <- function(usernames, token){
   # pull all the users from the cache
   user_tweet_info_from_cache <- map(usernames, user_tweet_info_cache$get)
 
-  # for anyone not in the cache, pull from twitter in parallel
-  if(any(map_lgl(user_tweet_info_from_cache, is.null))){
+  # if both people not in cache, pull from twitter in parallel
+  # if one person not in cache, pull from twitter (not parallel)
+  # if everyone is in the cache don't pull anything
+  num_to_pull <- sum(map_lgl(user_tweet_info_from_cache, is.null))
+  if(num_to_pull > 1){
     user_tweet_info_from_pull <- 
       future_pmap(list(usernames, user_tweet_info_from_cache), function(username, user_tweet_info){
         if(is.null(user_tweet_info)){
@@ -61,6 +73,15 @@ get_user_tweet_info_cache <- function(usernames, token){
                                           "get_tweets",
                                           "get_user_tweet_info",
                                           "make_word_lookup")))
+  } else if(num_to_pull == 1) {
+    user_tweet_info_from_pull <- 
+      pmap(list(usernames, user_tweet_info_from_cache), function(username, user_tweet_info){
+        if(is.null(user_tweet_info)){
+          get_user_tweet_info(username, token)
+        } else {
+          NULL
+        }
+      })
   } else {
     user_tweet_info_from_pull <- rep(list(NULL),2)
   }
@@ -233,7 +254,13 @@ ui <- div(
       uiOutput("generated_tweet_title"),
       #withSpinner(uiOutput("generated_tweet"), color="#f26d7e", type=8, proxy.height="80px")
       uiOutput("generated_tweet")
-  )
+  ),
+  
+  tags$script(HTML("
+  $(document).keyup(function(event) {
+    if ($((event.key == \"Enter\")) {
+                   $(\"#generate\").click();
+                   }});"))
 )
 
 
@@ -264,9 +291,9 @@ server <- function(input, output, session) {
     } else {
       
       # check if we have saved the keys in the cache
-      access_token <- credential_cache$get(user_id())
+      encrypted_access_token <- credential_cache$get(user_id())
       
-      if(is.null(access_token)){
+      if(is.null(encrypted_access_token)){
         # is the user is coming in from having just authenticated? 
         # if yes save the tokens, if not then no keys to user
         query <- getQueryString(session)
@@ -275,9 +302,13 @@ server <- function(input, output, session) {
            && !is.null(query$oauth_verifier)){ 
           access_token <- get_access_token(app, query$oauth_token, query$oauth_verifier)
           if(!is.null(access_token)){
-            credential_cache$set(user_id(), access_token)
+            credential_cache$set(user_id(), data_encrypt(serialize(access_token,NULL), encryption_key))
           }
+        } else {
+          access_token <- NULL
         }
+      } else {
+        access_token <- data_decrypt(encrypted_access_token, encryption_key)
       }
     }
     # turn the information from the file into a valid token object
@@ -357,7 +388,7 @@ server <- function(input, output, session) {
                     span(class="input-group-addon","@"),
                     tags$input(type="text",class="form-control", id="username_2")
                 )),
-            div(class="col-sm-1 col-xs-12 text-center",actionButton("generate","Go!", class="btn btn-primary")))
+            div(class="col-sm-1 col-xs-12 text-center",actionButton("generate", "Go!", class="btn btn-primary")))
       )
     }
     
@@ -396,6 +427,8 @@ server <- function(input, output, session) {
   output$generated_tweet <- renderUI({
     if(is.null(generated_tweet())){
       generated_tweet <- ""
+    } else if(is.na(generated_tweet())){
+      generated_tweet <- "mashup didn't work :("
     } else {
       generated_tweet <- generated_tweet()
     }

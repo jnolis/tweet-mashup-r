@@ -33,7 +33,7 @@ get_tweets <- function(username, token, n = 640){
     
     tweets <- clean_tweets(tweets)
   } else {
-    tweets <- list()
+    tweets <- character(0)
   }
   tweets
 }
@@ -64,8 +64,12 @@ make_word_lookup <- function(tweets){
   }
   
   word_lists <- strsplit(tweets," ")
+  if(length(word_lists) > 0){
+    word_lookup <- flatten_dfr(imap(word_lists, process_one_word_lookup))
+  } else {
+    word_lookup <- data.frame()
+  }
   
-  word_lookup <- flatten_dfr(imap(word_lists, process_one_word_lookup))
   word_lookup
 }
 
@@ -84,7 +88,9 @@ make_combined_tweet <- function(user_tweet_info_1, user_tweet_info_2, max_tweet_
   tweets_2 <- user_tweet_info_2$tweets
   word_lookup_1 <- user_tweet_info_1$word_lookup
   word_lookup_2 <- user_tweet_info_2$word_lookup
-  
+  if(nrow(word_lookup_1) == 0 || nrow(word_lookup_2) == 0){
+    return(NA_character_)
+  }
   all_splits <- inner_join(rename_at(word_lookup_1,vars(-clean_word), function(x) paste0(x,"_1")),
                       rename_at(word_lookup_2,vars(-clean_word), function(x) paste0(x,"_2")),
                       by="clean_word")
