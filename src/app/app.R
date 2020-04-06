@@ -4,7 +4,6 @@ library(httr) # needed for the 3-legged auth
 library(rtweet)
 library(future)
 library(furrr)
-library(sodium)
 
 source("twitter.R")
 
@@ -13,15 +12,6 @@ future::plan(future::multiprocess(workers=as.integer(Sys.getenv("FUTURE_WORKERS"
 
 # the Twitter application keys
 keys <- jsonlite::read_json("config.json")
-
-# encryption key to encrypt credentials at rest
-encryption_key <- Sys.getenv("CREDENTIAL_ENCRYPTION_KEY",NA_character_)
-if(is.na(encryption_key)){
-  stop("No key provided to encrypt credential data")
-} else {
-  encryption_key <- sha256(charToRaw(encryption_key))
-}
-
 fix_username <- function(original){
   username <- NULL
   if(!is.null(original)){
@@ -46,9 +36,9 @@ if(!is.null(keys$`google-analytics-id`)){
 
 # Cache for login credentials
 credential_cache <- 
-  diskCache(max_size = 64 * 1024^2, 
-              missing = NULL,
-              dir = "user-credentials")
+  memoryCache(max_size = 64 * 1024^2, 
+              max_age = 2592000,
+              missing = NULL)
 
 # cache for information about twitter users (name, profile image) and their tweets. It only stores information for a day to ensure the tweets are fresh
 user_tweet_info_cache <-
@@ -300,9 +290,9 @@ server <- function(input, output, session) {
     } else {
       
       # check if we have saved the keys in the cache
-      encrypted_access_token <- credential_cache$get(user_id())
+      access_token <- credential_cache$get(user_id())
       
-      if(is.null(encrypted_access_token)){
+      if(is.null(access_token)){
         # is the user is coming in from having just authenticated? 
         # if yes save the tokens, if not then no keys to user
         query <- getQueryString(session)
@@ -311,13 +301,11 @@ server <- function(input, output, session) {
            && !is.null(query$oauth_verifier)){ 
           access_token <- get_access_token(app, query$oauth_token, query$oauth_verifier)
           if(!is.null(access_token)){
-            credential_cache$set(user_id(), data_encrypt(serialize(access_token,NULL), encryption_key))
+            credential_cache$set(user_id(), access_token)
           }
         } else {
           access_token <- NULL
         }
-      } else {
-        access_token <- data_decrypt(encrypted_access_token, encryption_key)
       }
     }
     # turn the information from the file into a valid token object
