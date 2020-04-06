@@ -33,6 +33,13 @@ fix_username <- function(original){
   username
 }
 
+# google analytics code
+if(!is.null(keys$`google-analytics-id`)){
+  ga_file <- "google-analytics-template.html"
+  google_analytics_raw_html <- sub("\\{google-analytics-id\\}",keys$`google-analytics-id`,readChar(ga_file, file.info(ga_file)$size))
+} else {
+  google_analytics_raw_html <- NULL
+}
 # cache ---------------------------------------------
 
 # this code is for caches will hold the credentials and twitter info of the people who log in. Note that if the application times out and shuts down (which happens after 3 hours), all of the information is lost.
@@ -190,8 +197,8 @@ jsCode <- '
 # The app we'll be using. I didn't give it a name since it doesn't seem to matter
 app <- oauth_app(
   app = "",
-  key = keys$consumer_key,
-  secret = keys$consumer_secret
+  key = keys$twitter$consumer_key,
+  secret = keys$twitter$consumer_secret
 )
 
 # shiny code ----------------------------
@@ -222,8 +229,9 @@ ui <- div(
     # custom css styling for the site
     tags$link(rel = "stylesheet",
               type = "text/css",
-              href = "site.css")
+              href = "site.css"),
     
+    tags$head(HTML(google_analytics_raw_html))
     
   ),
 
@@ -272,6 +280,7 @@ server <- function(input, output, session) {
     
     # If the cookie loading but it's empty that means we have a new user 
     # and need to give them an id
+    
     if (!is.null(input$jscookie) && 
         is.character(input$jscookie) &&
         nchar(trimws(input$jscookie)) == 0) {
@@ -313,9 +322,10 @@ server <- function(input, output, session) {
     }
     # turn the information from the file into a valid token object
     if(!is.null(access_token)){
+      print(access_token)
       create_token(app="", 
-                   keys$consumer_key, 
-                   keys$consumer_secret, 
+                   keys$twitter$consumer_key, 
+                   keys$twitter$consumer_secret, 
                    access_token = access_token$oauth_token, 
                    access_secret = access_token$oauth_token_secret)
     }

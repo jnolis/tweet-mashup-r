@@ -14,10 +14,12 @@ __2. Get the keys__ - If you click the details of the app you created you'll see
 
 ```json
 {
-  "consumer_key": "[CONSUMER KEY]",
-  "consumer_secret": "[CONSUMER SECRET]",
-  "access_token": "[ACCESS TOKEN]",
-  "access_secret": "[ACCESS TOKEN SECRET]"
+  "twitter": {
+    "consumer_key": "[CONSUMER KEY]",
+    "consumer_secret": "[CONSUMER SECRET]",
+    "access_token": "[ACCESS TOKEN]",
+    "access_secret": "[ACCESS TOKEN SECRET]"
+  }
 }
 ```
 
@@ -28,6 +30,22 @@ __3. Set the callback url__ - Finally, in the Twitter developer site you'll need
 * `http://127.0.0.1` - for testing the application locally
 * `[url you host it on]` - for when it's running live
 * `http://127.0.0.1:1410` [optional] - if you want to do general experimentation with rtweet this will allow you to easily authenticate
+
+__4. Add google analytics (optional)__ - If you want to add Google analytics, create a GA account and get the ID for your page, then add it to the config.json file as so:
+
+```json
+{
+  "twitter": {
+    "consumer_key": "[CONSUMER KEY]",
+    "consumer_secret": "[CONSUMER SECRET]",
+    "access_token": "[ACCESS TOKEN]",
+    "access_secret": "[ACCESS TOKEN SECRET]"
+  }
+  "google-analytics-id": "UA-00000000-0"
+}
+
+__5. Create a password to encrypt the credentials__ - [WRITE LATER BECAUSE I DON'T FEEL LIKE IT]
+```
 
 ## Running directly
 
