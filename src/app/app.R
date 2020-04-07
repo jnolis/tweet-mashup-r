@@ -314,14 +314,11 @@ server <- function(input, output, session) {
           if(!is.null(access_token)){
             credential_cache$set(user_id(), access_token)
           }
-        } else {
-          access_token <- NULL
         }
       }
     }
     # turn the information from the file into a valid token object
     if(!is.null(access_token)){
-      print(access_token)
       create_token(app="", 
                    keys$twitter$consumer_key, 
                    keys$twitter$consumer_secret, 
