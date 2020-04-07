@@ -11,7 +11,17 @@ source("twitter.R")
 future::plan(future::multiprocess(workers=as.integer(Sys.getenv("FUTURE_WORKERS","4"))))
 
 # the Twitter application keys
-keys <- jsonlite::read_json("config.json")
+keys <- list(
+  twitter = list(
+    consumer_key = Sys.getenv("TWITTER_CONSUMER_KEY"),
+    consumer_secret = Sys.getenv("TWITTER_CONSUMER_SECRET")),
+  google_analytics_id = Sys.getenv("GOOGLE_ANALYTICS_ID")
+)
+
+if(is.null(keys$twitter$consumer_key) || is.null(keys$twitter$consumer_secret)){
+  stop("MISSING REQUIRED TWITTER CREDENTIAL ENVIRONMENTAL VARIABLES!")
+}
+
 fix_username <- function(original){
   username <- NULL
   if(!is.null(original)){
@@ -24,10 +34,11 @@ fix_username <- function(original){
 }
 
 # google analytics code
-if(!is.null(keys$`google-analytics-id`)){
+if(!is.null(keys$google_analytics_id)){
   ga_file <- "google-analytics-template.html"
-  google_analytics_raw_html <- sub("\\{google-analytics-id\\}",keys$`google-analytics-id`,readChar(ga_file, file.info(ga_file)$size))
+  google_analytics_raw_html <- sub("\\{google-analytics-id\\}",keys$google_analytics_id,readChar(ga_file, file.info(ga_file)$size))
 } else {
+  warning("No Google Analytics ID environmental variable found")
   google_analytics_raw_html <- NULL
 }
 # cache ---------------------------------------------
