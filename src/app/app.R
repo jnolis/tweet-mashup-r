@@ -4,8 +4,21 @@ library(httr) # needed for the 3-legged auth
 library(rtweet)
 library(future)
 library(furrr)
+library(bootstraplib)
 
 source("twitter.R")
+
+primary <- "#00ba96"
+
+bs_theme_new(version = "4+3", bootswatch = NULL)
+bs_theme_add_variables(
+  "primary" = primary,
+  "secondary" = primary,
+  "enable-rounded" = TRUE,
+  "font-size-base" = "1.1rem",
+  "line-height-base" = "1.75"
+)
+
 
 # needed so that the app can pull multiple twitter profiles in parallel
 future::plan(future::multiprocess(workers=as.integer(Sys.getenv("FUTURE_WORKERS","4"))))
@@ -203,7 +216,8 @@ app <- oauth_app(
 )
 
 # shiny code ----------------------------
-ui <- div(
+ui <- bootstrapPage(
+  bootstrap(),
   tags$head(
     # information about the site (title, description)
     tags$title("Tweet mashup!"),
@@ -219,9 +233,9 @@ ui <- div(
 
     # boostrap resources
     tags$script(src = "js/js.cookie.min.js"),
-    tags$link(rel="stylesheet", href="css/bootstrap.min.css"),
-    tags$link(rel="stylesheet", href="css/bootstrap-theme.min.css"),
-    tags$script(src="js/bootstrap.min.js"),
+    # tags$link(rel="stylesheet", href="css/bootstrap.min.css"),
+    # tags$link(rel="stylesheet", href="css/bootstrap-theme.min.css"),
+    # tags$script(src="js/bootstrap.min.js"),
 
     # font awesome for the twitter icon
     tags$link(rel="stylesheet",
@@ -245,15 +259,15 @@ ui <- div(
       div(class="container",
           tags$ul(class = "nav navbar-nav navbar-right",
                   tags$li(
-                    p(class="navbar-text navbar-right",
-                      HTML("Made by <a href=\"https://nolisllc.com\" target=\"_blank\">Nolis, LLC</a> with help from <a href=\"http://jesseddy.com\" class=\"navbar-link\" target=\"_blank\">Jess Eddy</a>")
+                    span(class="navbar-text navbar-right",
+                      HTML("Made by <a href=\"https://jnolis.com\" target=\"_blank\">Jacqueline Nolis</a> with help from <a href=\"http://jesseddy.com\" class=\"navbar-link\" target=\"_blank\">Jess Eddy</a>")
                     )
                   )
           )
       )
   ),
   
-  tags$section(class="bg-primary",
+  tags$section(class="text-light bg-primary py-5",
                div(class="container text-center",
                    h1("Tweet mashup!"),
                    h3("Combine tweets from two Twitter accounts for one awesome tweet!"))),
@@ -367,31 +381,39 @@ server <- function(input, output, session) {
       url <- get_authorization_url(app, callback_url = callback_url())
       tags$form(
         div(class="row vertical-align",
-            div(class="col-sm-5 col-xs-12",
+            div(class="col-sm-4 col-xs-12",
                 div(class="input-group",
-                    span(class="input-group-addon","@"),
+                    div(class = "input-group-prepend",
+                        span(class="input-group-text","@")
+                        ),
                     tags$input(type="text",class="form-control",  id="username_1", disabled=NA)
                 )),
-            div(class="col-sm-1 col-xs-12", h1("&", class="ampersand text-center")),
-            div(class="col-sm-5 col-xs-12",
+            div(class="col-sm-2 col-xs-12", h1("&", class="ampersand text-center")),
+            div(class="col-sm-4 col-xs-12",
                 div(class="input-group",
-                    span(class="input-group-addon","@"),
-                    tags$input(type="text",class="form-control", id="username_2", disabled=NA)
+                    div(class = "input-group-prepend",
+                        span(class="input-group-text","@")
+                    ),
+                    tags$input(type="text",class="form-control",  id="username_2", disabled=NA)
                 )),
-            div(class="col-sm-1 col-xs-12 text-center",a(class="btn twitter-button", href = url, tags$i(class="fa fa-twitter"), "Authorize!")))
+            div(class="col-sm-2 col-xs-12 text-center",a(class="btn twitter-button", href = url, tags$i(class="fa fa-twitter"), "Authorize!")))
       )
     } else {
       tags$form(
         div(class="form-group row vertical-align",
             div(class="col-sm-5 col-xs-12",
                 div(class="input-group",
-                    span(class="input-group-addon","@"),
+                    div(class = "input-group-prepend",
+                        span(class="input-group-text","@")
+                    ),
                     tags$input(type="text",class="form-control",  id="username_1")
                 )),
             div(class="col-sm-1 hidden-xs",h1("&", class="ampersand text-center")),
             div(class="col-sm-5 col-xs-12",
                 div(class="input-group",
-                    span(class="input-group-addon","@"),
+                    div(class = "input-group-prepend",
+                        span(class="input-group-text","@")
+                    ),
                     tags$input(type="text",class="form-control", id="username_2")
                 )),
             div(class="col-sm-1 col-xs-12 text-center",actionButton("generate", "Go!", class="btn btn-primary")))
@@ -421,8 +443,8 @@ server <- function(input, output, session) {
                   h6(tags$em(paste0("@",user_info_2$screen_name)))
               )
           ),
-          div(class="row text-center",
-              h4(HTML("Tweet mashup by <a href=\"https://nolisllc.com\" target=\"_blank\">Nolis, LLC</a>"))
+          div(class="my-2",
+              h5(class="text-center", em("tweetmashup.com presents"))
           )
       )
     } else {
