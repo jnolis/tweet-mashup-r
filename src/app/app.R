@@ -72,10 +72,10 @@ user_tweet_info_cache <-
 
 # this function will either pull user and tweet info for a username from the cache, or query the twitter API if the crdentials aren't found. It can pull multiple users at once in parallel
 get_user_tweet_info_cache <- function(usernames, token){  
-
+  
   # pull all the users from the cache
   user_tweet_info_from_cache <- map(usernames, user_tweet_info_cache$get)
-
+  
   # if both people not in cache, pull from twitter in parallel
   # if one person not in cache, pull from twitter (not parallel)
   # if everyone is in the cache don't pull anything
@@ -107,7 +107,7 @@ get_user_tweet_info_cache <- function(usernames, token){
     user_tweet_info_from_pull <- rep(list(NULL),2)
   }
   
-
+  
   
   # combine the cache and twitter information into one list
   results <- pmap(list(usernames, user_tweet_info_from_cache, user_tweet_info_from_pull), function(username, cache,pull){
@@ -221,26 +221,33 @@ ui <- bootstrapPage(
   tags$head(
     # information about the site (title, description)
     tags$title("Tweet mashup!"),
-    tags$link(rel="shortcut icon", href="favicon.ico", type="image/x-icon"),
+    tags$link(rel="apple-touch-icon", sizes="180x180", href="apple-touch-icon.png"),
+    tags$link(rel="icon", type="image/png", sizes="32x32", href="favicon-32x32.png"),
+    tags$link(rel="icon", type="image/png", sizes="16x16", href="favicon-16x16.png"),
+    tags$link(rel="manifest", href="site.webmanifest"),
+    tags$link(rel="mask-icon", href="safari-pinned-tab.svg", color="#00ba96"),
+    tags$meta(name="msapplication-TileColor", content="#00ba96"),
+    tags$meta(name="theme-color", content="#00ba96"),
+    
     tags$meta(name="viewport", content="width=device-width, initial-scale=1, maximum-scale=1"),
     tags$meta(`http-equiv`="x-ua-compatible", content="ie=edge"),
     tags$meta(name="description", content = "Combine two Twitter accounts into one funny tweet!"),
-
+    
     # open-graph tags for when people link to it
     tags$meta(property="og:title",content="Tweet mashup!"),
     tags$meta(property="og:description", content="Combine two Twitter accounts into one funny tweet!"),
     tags$meta(property="og:type",content="website"),
-
-    # boostrap resources
+    
+    # bootstrap resources
     tags$script(src = "js/js.cookie.min.js"),
     # tags$link(rel="stylesheet", href="css/bootstrap.min.css"),
     # tags$link(rel="stylesheet", href="css/bootstrap-theme.min.css"),
     # tags$script(src="js/bootstrap.min.js"),
-
+    
     # font awesome for the twitter icon
     tags$link(rel="stylesheet",
               href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"),
-
+    
     # custom css styling for the site
     tags$link(rel = "stylesheet",
               type = "text/css",
@@ -249,7 +256,7 @@ ui <- bootstrapPage(
     tags$head(HTML(google_analytics_raw_html))
     
   ),
-
+  
   # code for javascript
   useShinyjs(),
   extendShinyjs(text = jsCode),
@@ -260,7 +267,7 @@ ui <- bootstrapPage(
           tags$ul(class = "nav navbar-nav navbar-right",
                   tags$li(
                     span(class="navbar-text navbar-right",
-                      HTML("Made by <a href=\"https://jnolis.com\" target=\"_blank\">Jacqueline Nolis</a> with help from <a href=\"http://jesseddy.com\" class=\"navbar-link\" target=\"_blank\">Jess Eddy</a>")
+                         HTML("Made by <a href=\"https://jnolis.com\" target=\"_blank\">Jacqueline Nolis</a> with help from <a href=\"http://jesseddy.com\" class=\"navbar-link\" target=\"_blank\">Jess Eddy</a>")
                     )
                   )
           )
@@ -385,7 +392,7 @@ server <- function(input, output, session) {
                 div(class="input-group",
                     div(class = "input-group-prepend",
                         span(class="input-group-text","@")
-                        ),
+                    ),
                     tags$input(type="text",class="form-control",  id="username_1", disabled=NA)
                 )),
             div(class="col-sm-2 col-xs-12", h1("&", class="ampersand text-center")),
