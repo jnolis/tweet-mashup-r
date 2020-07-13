@@ -15,6 +15,6 @@
 # =========================================================================
 
 options(warn=2) # cause the build to fail if any packages fail to install
-install.packages(c("rtweet","purrr", "dplyr", "shinyjs", "httr", "jsonlite", "V8", "future", "furrr","remotes")) # install any packages you might want beyond shiny and keras
+install.packages(c("rtweet","purrr", "dplyr", "shinyjs", "httr", "jsonlite", "V8", "future", "furrr","remotes","digest")) # install any packages you might want beyond shiny and keras
 
 remotes::install_github("rstudio/bootstraplib@791daf226acc0234dd7015c5b64e0379a93e2c31", upgrade="never")

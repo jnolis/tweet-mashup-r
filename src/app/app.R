@@ -4,6 +4,7 @@ library(httr) # needed for the 3-legged auth
 library(rtweet)
 library(future)
 library(furrr)
+library(digest)
 library(bootstraplib)
 
 source("twitter.R")
@@ -73,8 +74,9 @@ user_tweet_info_cache <-
 # this function will either pull user and tweet info for a username from the cache, or query the twitter API if the crdentials aren't found. It can pull multiple users at once in parallel
 get_user_tweet_info_cache <- function(usernames, token){  
   
-  # pull all the users from the cache
-  user_tweet_info_from_cache <- map(usernames, user_tweet_info_cache$get)
+  # pull all the users from the cache, first digest it though because we need it to be all lowercase
+  # or numbers so twitter handles with "_" break it
+  user_tweet_info_from_cache <- map(map_chr(usernames,digest), user_tweet_info_cache$get)
   
   # if both people not in cache, pull from twitter in parallel
   # if one person not in cache, pull from twitter (not parallel)
@@ -112,7 +114,7 @@ get_user_tweet_info_cache <- function(usernames, token){
   # combine the cache and twitter information into one list
   results <- pmap(list(usernames, user_tweet_info_from_cache, user_tweet_info_from_pull), function(username, cache,pull){
     if(is.null(cache) && !is.null(pull)){
-      user_tweet_info_cache$set(username, pull)
+      user_tweet_info_cache$set(digest(username), pull)
       pull
     } else if(!is.null(cache)){
       cache
