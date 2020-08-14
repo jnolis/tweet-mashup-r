@@ -237,8 +237,21 @@ ui <- bootstrapPage(
     
     # open-graph tags for when people link to it
     tags$meta(property="og:title",content="Tweet mashup!"),
+    tags$meta(property="og:url",content="http://tweetmashup.com"),
     tags$meta(property="og:description", content="Combine two Twitter accounts into one funny tweet!"),
     tags$meta(property="og:type",content="website"),
+    
+    tags$meta(property="og:image", content="http://tweetmashup.com/open_graph_image.png"),
+    tags$meta(property="og:image:width", content="1200"),
+    tags$meta(property="og:image:height", content="630"),
+    
+    tags$meta(name="twitter:card", content="summary_large_image"),
+    tags$meta(name="twitter:title", content="Tweet Mashup!"),
+    tags$meta(name="twitter:image", content="http://tweetmashup.com/open_graph_image.png"),
+    tags$meta(name="twitter:image:width", content="1200"),
+    tags$meta(name="twitter:image:height", content="630"),
+    tags$meta(name="twitter:image:alt", content="Tweet Mashup!"),
+      
     
     # bootstrap resources
     tags$script(src = "js/js.cookie.min.js"),
