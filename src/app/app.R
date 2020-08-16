@@ -277,7 +277,7 @@ ui <- bootstrapPage(
   extendShinyjs(text = jsCode),
   
   # navbar with links, not shown on mobile
-  div(class="navbar navbar-static-top hidden-xs",role="navigation",
+  div(class="navbar navbar-static-top d-none d-md-block",role="navigation",
       div(class="container",
           tags$ul(class = "nav navbar-nav navbar-right",
                   tags$li(
@@ -430,7 +430,7 @@ server <- function(input, output, session) {
                     ),
                     tags$input(type="text",class="form-control",  id="username_1")
                 )),
-            div(class="col-sm-1 hidden-xs",h1("&", class="ampersand text-center")),
+            div(class="col-sm-1 d-none d-md-block",h1("&", class="ampersand text-center")),
             div(class="col-sm-5 col-xs-12",
                 div(class="input-group",
                     div(class = "input-group-prepend",
@@ -452,15 +452,15 @@ server <- function(input, output, session) {
       user_info_2 <- user_tweet_info$username_2$user_info
       div(class="output-ui container",
           div(class="row",
-              div(class="col-sm-4 left-name hidden-xs",
+              div(class="col-md-4 left-name d-none d-md-block",
                   h4(user_info_1$name),
                   h6(tags$em(paste0("@",user_info_1$screen_name)))
               ),
-              div(class="overlapping-images col-sm-4",
+              div(class="overlapping-images col-md-4",
                   img(src=user_info_1$image_url, class="img-circle img-left", width = "128", height ="128"),
                   img(src=user_info_2$image_url, class="img-circle img-right", width = "128", height ="128")
               ),
-              div(class="col-sm-4 right-name hidden-xs",
+              div(class="col-md-4 right-name d-none d-md-block",
                   h4(user_info_2$name),
                   h6(tags$em(paste0("@",user_info_2$screen_name)))
               )
